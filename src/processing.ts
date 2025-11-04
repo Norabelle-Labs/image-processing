@@ -30,21 +30,26 @@ export async function processImage<Sizes extends NamedSizes = DefaultNamedSizes>
   const { format: formatOption = defaultOptions.format, sizes: sizeOption = defaultOptions.sizes } = options;
 
   if (!meta.width || !meta.height || !meta.format)
-    throw new ImageProcessingError("Could not determine image dimensions or format.", ImageProcessingError.CODE_INVALID_IMAGE);
+    throw new ImageProcessingError(
+      "Could not determine image dimensions or format.",
+      ImageProcessingError.CODE_INVALID_IMAGE,
+    );
 
   const ratio = meta.width / meta.height;
   const lqip = await createLqip(image);
 
-  const sizes: ImageSizes<Sizes> = await Promise.all(Object.entries(sizeOption).map(async ([name, size]): Promise<[string, ImageSizes<Sizes>[keyof Sizes]]> => {
-    const data = await createImageSize(image, size, formatOption, meta.width!, meta.height!);
-    return [name, { data, format: formatOption }];
-  })).then(Object.fromEntries);
+  const sizes: ImageSizes<Sizes> = await Promise.all(
+    Object.entries(sizeOption).map(async ([name, size]): Promise<[string, ImageSizes<Sizes>[keyof Sizes]]> => {
+      const data = await createImageSize(image, size, formatOption, meta.width!, meta.height!);
+      return [name, { data, format: formatOption }];
+    }),
+  ).then(Object.fromEntries);
 
   const metadata: ImageMetadata = {
-    width:    meta.width,
-    height:   meta.height,
+    width: meta.width,
+    height: meta.height,
     ratio,
-    format:   meta.format,
+    format: meta.format,
     filesize: meta.size!,
     filename,
     mimetype: `image/${meta.format!}`,
@@ -54,44 +59,45 @@ export async function processImage<Sizes extends NamedSizes = DefaultNamedSizes>
 }
 
 export async function createImageSize(
-  image:        Sharp,
-  size:         NamedSize,
-  format:       keyof FormatEnum | AvailableFormatInfo,
-  sourceWidth:  number,
+  image: Sharp,
+  size: NamedSize,
+  format: keyof FormatEnum | AvailableFormatInfo,
+  sourceWidth: number,
   sourceHeight: number,
 ) {
   const [resize, extract] = normalizeOptions(size, sourceWidth, sourceHeight);
-  image              = image.toFormat(format);
+  image = image.toFormat(format);
   if (extract) image = image.extract(extract);
-  if (resize)  image = image.resize(resize);
+  if (resize) image = image.resize(resize);
   return await image.toBuffer();
 }
 
 function normalizeOptions(
-  size:         NamedSize,
-  sourceWidth:  number,
+  size: NamedSize,
+  sourceWidth: number,
   sourceHeight: number,
 ): [resize: ResizeOptions | undefined, extract: Region | undefined] {
   const sourceRatio = sourceWidth / sourceHeight;
   let width: number, height: number, fit: keyof FitEnum | undefined, hotspot: Hotspot | undefined;
 
-  if (size === "original")      return [undefined, undefined];
-  if (typeof size === "number") return [{ withoutEnlargement: true, [sourceRatio > 1 ? "width" : "height"]: size, fit: "inside" }, undefined]
+  if (size === "original") return [undefined, undefined];
+  if (typeof size === "number")
+    return [{ withoutEnlargement: true, [sourceRatio > 1 ? "width" : "height"]: size, fit: "inside" }, undefined];
 
-  if (Array.isArray(size)) [ width, height, hotspot, fit ] = size;
-  else                    ({ width, height, hotspot, fit } = size);
+  if (Array.isArray(size)) [width, height, hotspot, fit] = size;
+  else ({ width, height, hotspot, fit } = size);
 
   const resize: ResizeOptions = { withoutEnlargement: true, width, height, fit };
   if (!hotspot) return [resize, undefined];
-  else          return [resize, normalizeExtractOptions(sourceWidth, sourceHeight, width, height, hotspot)];
+  return [resize, normalizeExtractOptions(sourceWidth, sourceHeight, width, height, hotspot)];
 }
 
 function normalizeExtractOptions(
-  sourceWidth:  number,
+  sourceWidth: number,
   sourceHeight: number,
-  targetWidth:  number,
+  targetWidth: number,
   targetHeight: number,
-  hotspot:      Hotspot,
+  hotspot: Hotspot,
 ): Region | undefined {
   if (!hotspot) return undefined;
   const [x, y] = hotspot;
@@ -99,11 +105,11 @@ function normalizeExtractOptions(
   const sourceRatio = sourceWidth / sourceHeight;
   const targetRatio = targetWidth / targetHeight;
 
-  const width  = sourceRatio > targetRatio ? Math.round(sourceHeight * targetRatio) : sourceWidth;
+  const width = sourceRatio > targetRatio ? Math.round(sourceHeight * targetRatio) : sourceWidth;
   const height = sourceRatio > targetRatio ? sourceHeight : Math.round(sourceWidth / targetRatio);
 
-  const left = clamp(Math.round(x - width  / 2), 0, sourceWidth  - width);
-  const top  = clamp(Math.round(y - height / 2), 0, sourceHeight - height);
+  const left = clamp(Math.round(x - width / 2), 0, sourceWidth - width);
+  const top = clamp(Math.round(y - height / 2), 0, sourceHeight - height);
 
   return { left, top, width, height };
 }

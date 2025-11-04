@@ -3,7 +3,11 @@ import sharp from "sharp";
 import { processImage, createImageSize, createLqip } from "../src/processing.ts";
 import { defaultOptions } from "../src/defaults.ts";
 
-function createSolidImage(width = 64, height = 48, color: { r: number; g: number; b: number } = { r: 0, g: 128, b: 255 }) {
+function createSolidImage(
+  width = 64,
+  height = 48,
+  color: { r: number; g: number; b: number } = { r: 0, g: 128, b: 255 },
+) {
   return sharp({
     create: {
       width,
@@ -47,7 +51,13 @@ describe("createImageSize", () => {
   it("crops around hotspot when provided", async () => {
     const img = createSolidImage(400, 200); // 2:1
     // Request a square crop 100x100 centered at hotspot (300, 100) (near the right side)
-    const buf = await createImageSize(img, { width: 100, height: 100, hotspot: [300, 100], fit: "cover" }, "webp", 400, 200);
+    const buf = await createImageSize(
+      img,
+      { width: 100, height: 100, hotspot: [300, 100], fit: "cover" },
+      "webp",
+      400,
+      200,
+    );
     const meta = await sharp(buf).metadata();
     expect(meta.width).toBe(100);
     expect(meta.height).toBe(100);

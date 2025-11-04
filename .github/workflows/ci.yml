@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  lint_test:
+    name: Lint, Typecheck, Test, and Coverage Guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (current)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Biome - Format Check
+        run: npm run format:check
+
+      - name: Biome - Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests (current) with coverage
+        run: npm run test:coverage
+
+      - name: Checkout baseline main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: __baseline
+          fetch-depth: 0
+
+      - name: Install dependencies (baseline)
+        working-directory: __baseline
+        run: bun install --frozen-lockfile
+
+      - name: Tests (baseline) with coverage
+        working-directory: __baseline
+        run: bun test --coverage
+
+      - name: Compare coverage vs. main
+        run: node scripts/compare-coverage.mjs --baseline __baseline/coverage --current coverage --epsilon 0.1

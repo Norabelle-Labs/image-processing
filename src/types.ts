@@ -2,9 +2,9 @@ import type { DefaultNamedSizes } from "./defaults.ts";
 import type { AvailableFormatInfo, FitEnum, FormatEnum } from "sharp";
 
 export interface ProcessedImage<Sizes extends NamedSizes> {
-  sizes:    ImageSizes<Sizes>;
+  sizes: ImageSizes<Sizes>;
   metadata: ImageMetadata;
-  lqip:     string;
+  lqip: string;
 }
 
 export type ImageSizes<Sizes extends NamedSizes> = {
@@ -15,11 +15,11 @@ export type ImageSizes<Sizes extends NamedSizes> = {
 };
 
 export interface ImageMetadata {
-  width:    number;
-  height:   number;
-  ratio:    number;
+  width: number;
+  height: number;
+  ratio: number;
 
-  format:   string;
+  format: string;
   filesize: number;
   filename: string;
   mimetype: string;
@@ -40,14 +40,18 @@ export type NamedSize = number | NamedSizeArray | NamedSizeOptions | "original";
 export type NamedSizes = Record<string, NamedSize>;
 
 export interface ImageProcessingOptions<Sizes extends NamedSizes = DefaultNamedSizes> {
-  format?:  keyof FormatEnum | AvailableFormatInfo;
-  sizes?:   Sizes;
+  format?: keyof FormatEnum | AvailableFormatInfo;
+  sizes?: Sizes;
 }
 
 export class ImageProcessingError extends Error {
   static readonly CODE_INVALID_IMAGE = "INVALID_IMAGE";
 
-  constructor(message: string, public code: string, cause?: Error) {
+  constructor(
+    message: string,
+    public code: string,
+    cause?: Error,
+  ) {
     super(message, { cause });
   }
 }

@@ -2,14 +2,25 @@
   "name": "@norabelle-labs/image-processing",
   "version": "0.1.0",
   "description": "Tiny image processing utility powered by sharp: resize, crop with hotspot, LQIP, and metadata.",
-  "type": "module",
+  "author": "Nora Belle Reichwald <nora@reichwald.me>",
   "license": "MIT",
-  "homepage": "",
+  "type": "module",
+  "scripts": {
+    "build": "tsup",
+    "prepare": "tsup",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint . --apply",
+    "format": "biome format . --write",
+    "format:check": "biome format .",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage"
+  },
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/Norabelle-Labs/image-processing"
   },
-  "author": "",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -21,30 +32,22 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "sideEffects": false,
   "engines": {
     "node": ">=18",
     "bun": ">=1.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@types/bun": "latest",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0"
   },
   "peerDependencies": {
+    "sharp": "*"
   },
-  "dependencies": {
-    "sharp": "^0.34.4"
-  },
-  "scripts": {
-    "build": "tsup",
-    "prepare": "tsup",
-    "test": "bun test",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+  "publishConfig": {
+    "access": "public"
   }
 }
