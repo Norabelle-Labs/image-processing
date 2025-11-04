@@ -26,7 +26,7 @@ export async function processImage<Sizes extends NamedSizes = DefaultNamedSizes>
   options: ImageProcessingOptions<Sizes> = defaultOptions as never,
 ): Promise<ProcessedImage<Sizes>> {
   const image = sharp(source);
-  const meta = await image.metadata().catch(error => {
+  const meta = await image.metadata().catch((error) => {
     throw new ImageProcessingError(
       "Could not determine image dimensions or format.",
       ImageProcessingError.CODE_INVALID_IMAGE,
