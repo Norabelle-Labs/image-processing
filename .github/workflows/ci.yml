@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   lint_test:
@@ -44,20 +45,38 @@ jobs:
       - name: Tests (current) with coverage
         run: npm run test:coverage
 
-      - name: Checkout baseline main
-        uses: actions/checkout@v4
+      - name: Upload coverage artifact (main only)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
         with:
-          ref: main
-          path: __baseline
-          fetch-depth: 0
+          name: coverage-main
+          path: coverage
+          if-no-files-found: warn
+          retention-days: 30
 
-      - name: Install dependencies (baseline)
-        working-directory: __baseline
-        run: bun install --frozen-lockfile
-
-      - name: Tests (baseline) with coverage
-        working-directory: __baseline
-        run: bun test --coverage
+      - name: Download baseline coverage artifact from main
+        if: github.ref != 'refs/heads/main'
+        uses: dawidd6/action-download-artifact@v6
+        continue-on-error: true
+        with:
+          workflow: ci.yml
+          workflow_conclusion: success
+          branch: main
+          name: coverage-main
+          path: __baseline_artifact
 
       - name: Compare coverage vs. main
-        run: node scripts/compare-coverage.mjs --baseline __baseline/coverage --current coverage --epsilon 0.1
+        run: |
+          BASELINE_DIR=""
+          if [ -d "__baseline_artifact/coverage" ]; then
+            BASELINE_DIR="__baseline_artifact/coverage"
+          elif [ -f "__baseline_artifact/coverage-summary.json" ] || [ -f "__baseline_artifact/coverage-final.json" ]; then
+            BASELINE_DIR="__baseline_artifact"
+          fi
+
+          if [ -n "$BASELINE_DIR" ]; then
+            node scripts/compare-coverage.mjs --baseline "$BASELINE_DIR" --current coverage --epsilon 0.1
+          else
+            echo "No baseline coverage artifact found; skipping regression check.";
+          fi
+        shell: bash

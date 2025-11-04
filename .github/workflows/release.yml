@@ -1,26 +1,30 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
 
 permissions:
   contents: write
   issues: write
   pull-requests: write
   packages: write
+  actions: read
 
 jobs:
   release:
     name: Publish to npm via semantic-release
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout (commit from CI)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history needed for semantic-release
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
