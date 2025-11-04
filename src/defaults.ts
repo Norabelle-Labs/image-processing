@@ -10,7 +10,7 @@ export const defaultNamedSizes = {
 
 export type DefaultNamedSizes = typeof defaultNamedSizes;
 
-export const defaultOptions: Required<ImageProcessingOptions> = {
+export const defaultOptions: Required<Omit<ImageProcessingOptions, "hotspot">> = {
   format: "webp",
   sizes: defaultNamedSizes,
 };

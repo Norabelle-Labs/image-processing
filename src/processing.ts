@@ -33,7 +33,7 @@ export async function processImage<Sizes extends NamedSizes = DefaultNamedSizes>
       error,
     );
   });
-  const { format: formatOption = defaultOptions.format, sizes: sizeOption = defaultOptions.sizes } = options;
+  const { format: formatOption = defaultOptions.format, sizes: sizeOption = defaultOptions.sizes, hotspot } = options;
 
   if (!meta.width || !meta.height || !meta.format)
     throw new ImageProcessingError(
@@ -46,7 +46,7 @@ export async function processImage<Sizes extends NamedSizes = DefaultNamedSizes>
 
   const sizes: ImageSizes<Sizes> = await Promise.all(
     Object.entries(sizeOption).map(async ([name, size]): Promise<[string, ImageSizes<Sizes>[keyof Sizes]]> => {
-      const data = await createImageSize(image, size, formatOption, meta.width!, meta.height!);
+      const data = await createImageSize(image, size, formatOption, meta.width!, meta.height!, hotspot);
       return [name, { data, format: formatOption }];
     }),
   ).then(Object.fromEntries);
@@ -70,8 +70,9 @@ export async function createImageSize(
   format: keyof FormatEnum | AvailableFormatInfo,
   sourceWidth: number,
   sourceHeight: number,
+  hotspot?: Hotspot,
 ) {
-  const [resize, extract] = normalizeOptions(size, sourceWidth, sourceHeight);
+  const [resize, extract] = normalizeOptions(size, sourceWidth, sourceHeight, hotspot);
   image = image.toFormat(format);
   if (extract) image = image.extract(extract);
   if (resize) image = image.resize(resize);
@@ -82,9 +83,10 @@ function normalizeOptions(
   size: NamedSize,
   sourceWidth: number,
   sourceHeight: number,
+  hotspot?: Hotspot,
 ): [resize: ResizeOptions | undefined, extract: Region | undefined] {
   const sourceRatio = sourceWidth / sourceHeight;
-  let width: number, height: number, fit: keyof FitEnum | undefined, hotspot: Hotspot | undefined;
+  let width: number, height: number, fit: keyof FitEnum | undefined;
 
   if (size === "original") return [undefined, undefined];
   if (typeof size === "number")

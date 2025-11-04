@@ -42,6 +42,7 @@ export type NamedSizes = Record<string, NamedSize>;
 export interface ImageProcessingOptions<Sizes extends NamedSizes = DefaultNamedSizes> {
   format?: keyof FormatEnum | AvailableFormatInfo;
   sizes?: Sizes;
+  hotspot?: Hotspot;
 }
 
 export class ImageProcessingError extends Error {
