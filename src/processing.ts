@@ -1,19 +1,30 @@
 import {
-  type ImageBase,
+  type ProcessedImage,
   type ImageMetadata,
   ImageProcessingError,
   type ImageProcessingOptions,
   type ImageSizes,
   type NamedSizes,
+  type NamedSize,
+  type Hotspot,
 } from "./types.ts";
 import { type DefaultNamedSizes, defaultOptions } from "./defaults.ts";
-import sharp, { type AvailableFormatInfo, type FormatEnum, type Sharp, type SharpInput } from "sharp";
+import sharp, {
+  type AvailableFormatInfo,
+  type FitEnum,
+  type FormatEnum,
+  type Region,
+  type ResizeOptions,
+  type Sharp,
+  type SharpInput,
+} from "sharp";
+import { clamp } from "./util.ts";
 
 export async function processImage<Sizes extends NamedSizes = DefaultNamedSizes>(
   source: SharpInput,
   filename: string,
   options: ImageProcessingOptions<Sizes> = defaultOptions as never,
-): Promise<ImageBase<Sizes>> {
+): Promise<ProcessedImage<Sizes>> {
   const image = sharp(source);
   const meta = await image.metadata();
   const { format: formatOption = defaultOptions.format, sizes: sizeOption = defaultOptions.sizes } = options;
@@ -25,9 +36,7 @@ export async function processImage<Sizes extends NamedSizes = DefaultNamedSizes>
   const lqip = await createLqip(image);
 
   const sizes: ImageSizes<Sizes> = await Promise.all(Object.entries(sizeOption).map(async ([name, size]): Promise<[string, ImageSizes<Sizes>[keyof Sizes]]> => {
-    const data = size === "original"
-      ? await image.toFormat(formatOption).toBuffer()
-      : await createImageSize(image, size, formatOption, ratio);
+    const data = await createImageSize(image, size, formatOption, meta.width!, meta.height!);
     return [name, { data, format: formatOption }];
   })).then(Object.fromEntries);
 
@@ -45,21 +54,58 @@ export async function processImage<Sizes extends NamedSizes = DefaultNamedSizes>
 }
 
 export async function createImageSize(
-  image: Sharp,
-  size: number | [width: number, height: number] | "original",
-  format: keyof FormatEnum | AvailableFormatInfo,
-  ratio: number,
+  image:        Sharp,
+  size:         NamedSize,
+  format:       keyof FormatEnum | AvailableFormatInfo,
+  sourceWidth:  number,
+  sourceHeight: number,
 ) {
-  return await image.toFormat(format).resize(Array.isArray(size) ? {
-    withoutEnlargement: true,
-    width: size[0],
-    height: size[1],
-    fit: "inside",
-  } : {
-    withoutEnlargement: true,
-    [ratio > 1 ? "width" : "height"]: size,
-    fit: "inside",
-  }).toBuffer();
+  const [resize, extract] = normalizeOptions(size, sourceWidth, sourceHeight);
+  image              = image.toFormat(format);
+  if (extract) image = image.extract(extract);
+  if (resize)  image = image.resize(resize);
+  return await image.toBuffer();
+}
+
+function normalizeOptions(
+  size:         NamedSize,
+  sourceWidth:  number,
+  sourceHeight: number,
+): [resize: ResizeOptions | undefined, extract: Region | undefined] {
+  const sourceRatio = sourceWidth / sourceHeight;
+  let width: number, height: number, fit: keyof FitEnum | undefined, hotspot: Hotspot | undefined;
+
+  if (size === "original")      return [undefined, undefined];
+  if (typeof size === "number") return [{ withoutEnlargement: true, [sourceRatio > 1 ? "width" : "height"]: size, fit: "inside" }, undefined]
+
+  if (Array.isArray(size)) [ width, height, hotspot, fit ] = size;
+  else                    ({ width, height, hotspot, fit } = size);
+
+  const resize: ResizeOptions = { withoutEnlargement: true, width, height, fit };
+  if (!hotspot) return [resize, undefined];
+  else          return [resize, normalizeExtractOptions(sourceWidth, sourceHeight, width, height, hotspot)];
+}
+
+function normalizeExtractOptions(
+  sourceWidth:  number,
+  sourceHeight: number,
+  targetWidth:  number,
+  targetHeight: number,
+  hotspot:      Hotspot,
+): Region | undefined {
+  if (!hotspot) return undefined;
+  const [x, y] = hotspot;
+
+  const sourceRatio = sourceWidth / sourceHeight;
+  const targetRatio = targetWidth / targetHeight;
+
+  const width  = sourceRatio > targetRatio ? Math.round(sourceHeight * targetRatio) : sourceWidth;
+  const height = sourceRatio > targetRatio ? sourceHeight : Math.round(sourceWidth / targetRatio);
+
+  const left = clamp(Math.round(x - width  / 2), 0, sourceWidth  - width);
+  const top  = clamp(Math.round(y - height / 2), 0, sourceHeight - height);
+
+  return { left, top, width, height };
 }
 
 export async function createLqip(image: Sharp) {

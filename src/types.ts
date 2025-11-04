@@ -1,14 +1,17 @@
 import type { DefaultNamedSizes } from "./defaults.ts";
-import type { AvailableFormatInfo, FormatEnum } from "sharp";
+import type { AvailableFormatInfo, FitEnum, FormatEnum } from "sharp";
 
-export interface ImageBase<Sizes extends NamedSizes> {
+export interface ProcessedImage<Sizes extends NamedSizes> {
   sizes:    ImageSizes<Sizes>;
   metadata: ImageMetadata;
   lqip:     string;
 }
 
 export type ImageSizes<Sizes extends NamedSizes> = {
-  [Key in keyof Sizes]: { data: Buffer<ArrayBufferLike>; format: keyof FormatEnum | AvailableFormatInfo };
+  [Key in keyof Sizes]: {
+    data: Buffer<ArrayBufferLike>;
+    format: keyof FormatEnum | AvailableFormatInfo;
+  };
 };
 
 export interface ImageMetadata {
@@ -22,7 +25,19 @@ export interface ImageMetadata {
   mimetype: string;
 }
 
-export type NamedSizes = Record<string, number | [width: number, height: number] | "original">;
+export type Hotspot = [x: number, y: number];
+
+export interface NamedSizeOptions {
+  width: number;
+  height: number;
+  fit?: keyof FitEnum;
+  hotspot?: Hotspot;
+}
+
+export type NamedSizeArray = [width: number, height: number, hotspot?: Hotspot, fit?: keyof FitEnum];
+
+export type NamedSize = number | NamedSizeArray | NamedSizeOptions | "original";
+export type NamedSizes = Record<string, NamedSize>;
 
 export interface ImageProcessingOptions<Sizes extends NamedSizes = DefaultNamedSizes> {
   format?:  keyof FormatEnum | AvailableFormatInfo;

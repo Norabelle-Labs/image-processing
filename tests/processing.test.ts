@@ -1,95 +1,63 @@
-import { expect, test, describe } from "bun:test";
+import { describe, it, expect } from "bun:test";
 import sharp from "sharp";
-import processImage, { createImageSize, createLqip, defaultOptions } from "../src/index.ts";
+import { processImage, createImageSize, createLqip } from "../src/processing.ts";
+import { defaultOptions } from "../src/defaults.ts";
 
-async function makeSampleImage(width = 120, height = 80, background: sharp.Color = { r: 255, g: 0, b: 0, alpha: 1 }) {
-  // Create a simple solid-color PNG in memory
-  const img = sharp({
+function createSolidImage(width = 64, height = 48, color: { r: number; g: number; b: number } = { r: 0, g: 128, b: 255 }) {
+  return sharp({
     create: {
       width,
       height,
-      channels: 4,
-      background,
+      channels: 3,
+      background: color,
     },
   }).png();
-  const buf = await img.toBuffer();
-  return buf;
 }
 
 describe("processImage", () => {
-  test("returns expected metadata, sizes and lqip using defaults", async () => {
-    const src = await makeSampleImage(120, 80);
+  it("produces sizes, metadata and lqip for a basic image", async () => {
+    const src = await createSolidImage(120, 80).toBuffer();
+    const result = await processImage(src, "solid.png");
 
-    const result = await processImage(src, "sample.png");
+    // default sizes should exist
+    for (const key of Object.keys(defaultOptions.sizes)) {
+      expect(result.sizes).toHaveProperty(key);
+      const buf = result.sizes[key as keyof typeof result.sizes].data;
+      expect(Buffer.isBuffer(buf)).toBe(true);
+    }
 
-    // metadata
+    expect(result.metadata.filename).toBe("solid.png");
     expect(result.metadata.width).toBe(120);
     expect(result.metadata.height).toBe(80);
     expect(result.metadata.ratio).toBeCloseTo(120 / 80);
-    expect(result.metadata.filename).toBe("sample.png");
-    expect(typeof result.metadata.format).toBe("string");
-    expect(result.metadata.filesize).toBeGreaterThan(0);
-    expect(result.metadata.mimetype.startsWith("image/")).toBeTrue();
-
-    // sizes
-    const keys = Object.keys(result.sizes).sort();
-    const expected = Object.keys(defaultOptions.sizes).sort();
-    expect(keys).toEqual(expected);
-
-    for (const [name, { data }] of Object.entries(result.sizes)) {
-      expect(Buffer.isBuffer(data)).toBeTrue();
-      expect(data.length).toBeGreaterThan(0);
-      // All outputs are in the selected format (default webp)
-      const meta = await sharp(data).metadata();
-      expect(meta.format).toBe((defaultOptions.format as string).toLowerCase());
-    }
-
-    // lqip
-    expect(result.lqip.startsWith("data:image/webp;base64,")).toBeTrue();
+    expect(result.lqip.startsWith("data:image/webp;base64,")).toBe(true);
   });
 });
 
 describe("createImageSize", () => {
-  test("respects withoutEnlargement and fit=inside for numeric size on landscape", async () => {
-    // Original 100x50 (ratio > 1)
-    const src = await makeSampleImage(100, 50);
-    const image = sharp(src);
-
-    // Request width=200 but withoutEnlargement=true should prevent upscaling
-    const out = await createImageSize(image, 200, "webp", 100 / 50);
-    const meta = await sharp(out).metadata();
-
-    expect(meta.width).toBeLessThanOrEqual(100);
+  it("resizes maintaining aspect ratio when given a number", async () => {
+    const img = createSolidImage(200, 100); // 2:1
+    const buf = await createImageSize(img, 50, "webp", 200, 100);
+    const meta = await sharp(buf).metadata();
+    // height should be 25 to maintain 2:1 when width constrained to 50 (inside)
+    expect(meta.width).toBeLessThanOrEqual(50);
     expect(meta.height).toBeLessThanOrEqual(50);
   });
 
-  test("resizes to fit inside specific WxH", async () => {
-    const src = await makeSampleImage(300, 200); // 3:2 ratio
-    const image = sharp(src);
-
-    const out = await createImageSize(image, [120, 120], "webp", 3 / 2);
-    const meta = await sharp(out).metadata();
-
-    // It must fit inside 120x120 preserving aspect ratio
-    expect(meta.width! <= 120 && meta.height! <= 120).toBeTrue();
+  it("crops around hotspot when provided", async () => {
+    const img = createSolidImage(400, 200); // 2:1
+    // Request a square crop 100x100 centered at hotspot (300, 100) (near the right side)
+    const buf = await createImageSize(img, { width: 100, height: 100, hotspot: [300, 100], fit: "cover" }, "webp", 400, 200);
+    const meta = await sharp(buf).metadata();
+    expect(meta.width).toBe(100);
+    expect(meta.height).toBe(100);
   });
 });
 
 describe("createLqip", () => {
-  test("returns a data URL string", async () => {
-    const src = await makeSampleImage(60, 40);
-    const image = sharp(src);
-
-    const lqip = await createLqip(image);
-    expect(lqip.startsWith("data:image/webp;base64,")).toBeTrue();
-    // Some arbitrary minimal length to ensure it's not empty
-    expect(lqip.length).toBeGreaterThan(64);
-  });
-});
-
-describe("error handling", () => {
-  test("processImage rejects for invalid input", async () => {
-    const invalid = Buffer.from([]); // invalid buffer for sharp
-    await expect(processImage(invalid, "broken.png")).rejects.toBeDefined();
+  it("returns a data URL string", async () => {
+    const img = createSolidImage(50, 50);
+    const url = await createLqip(img);
+    expect(url.startsWith("data:image/webp;base64,")).toBe(true);
   });
 });

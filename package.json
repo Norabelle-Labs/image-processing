@@ -1,17 +1,50 @@
 {
   "name": "@norabelle-labs/image-processing",
-  "module": "src/index.ts",
+  "version": "0.1.0",
+  "description": "Tiny image processing utility powered by sharp: resize, crop with hotspot, LQIP, and metadata.",
   "type": "module",
+  "license": "MIT",
+  "homepage": "",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "author": "",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18",
+    "bun": ">=1.1"
+  },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0"
   },
   "peerDependencies": {
-    "typescript": "^5"
   },
   "dependencies": {
     "sharp": "^0.34.4"
   },
   "scripts": {
-    "test": "bun test"
+    "build": "tsup",
+    "prepare": "tsup",
+    "test": "bun test",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
